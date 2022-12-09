@@ -72,6 +72,7 @@ class Engine():
         engine = engine_from_network(network_from_onnx_path(onnx_path), config=CreateConfig(fp16=fp16, profiles=[p],
             preview_features=preview_features))
         save_engine(engine, path=self.engine_path)
+        del engine
 
     def activate(self):
         print(f"Loading TensorRT engine: {self.engine_path}")
