@@ -145,8 +145,8 @@ class DemoDiffusion:
         self.unet_model_key = 'unet_fp16' if denoising_fp16 else 'unet'
         self.models = {
             'clip': CLIP(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
-            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
-            'vae': VAE(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size)
+            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device=device, verbose=verbose, max_batch_size=max_batch_size),
+            'vae': VAE(hf_token=hf_token, device=device, verbose=verbose, max_batch_size=max_batch_size)
         }
 
         self.engine = {}
