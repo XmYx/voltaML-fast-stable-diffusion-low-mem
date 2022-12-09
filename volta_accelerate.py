@@ -233,6 +233,7 @@ class DemoDiffusion:
                                     output_names = obj.get_output_names(),
                                     dynamic_axes=obj.get_dynamic_axes(),
                             )
+                            del model
                     else:
                         print(f"Found cached model: {onnx_path}")
 
@@ -249,7 +250,7 @@ class DemoDiffusion:
                     input_profile=obj.get_input_profile(opt_batch_size, opt_image_height, opt_image_width, \
                         static_batch=static_batch, static_shape=static_shape), \
                     enable_preview=enable_preview)
-            self.engine[model_name] = engine.to("cpu")
+            self.engine[model_name] = engine
             del engine
             torch.cuda.empty_cache()
 
