@@ -212,7 +212,7 @@ class DemoDiffusion:
 
         # Build engines
         for model_name, obj in self.models.items():
-            obj.to(self.device)
+            self.models[model_name].to(self.device)
             engine = Engine(model_name, engine_dir)
             if force_build or not os.path.exists(engine.engine_path):
                 onnx_path = self.getModelPath(model_name, onnx_dir, opt=False)
@@ -252,7 +252,7 @@ class DemoDiffusion:
                         static_batch=static_batch, static_shape=static_shape), \
                     enable_preview=enable_preview)
             self.engine[model_name] = engine
-            obj.to('cpu')
+            self.models[model_name].to('cpu')
             del engine
             torch.cuda.empty_cache()
 
