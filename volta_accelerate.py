@@ -250,6 +250,9 @@ class DemoDiffusion:
                         static_batch=static_batch, static_shape=static_shape), \
                     enable_preview=enable_preview)
             self.engine[model_name] = engine
+            del engine
+            torch.gc()
+            torch.cuda.empty_cache()
 
         # Separate iteration to activate engines
         for model_name, obj in self.models.items():
