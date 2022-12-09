@@ -145,8 +145,8 @@ class DemoDiffusion:
         self.unet_model_key = 'unet_fp16' if denoising_fp16 else 'unet'
         self.models = {
             'clip': CLIP(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
-            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device=device, verbose=verbose, max_batch_size=max_batch_size),
-            'vae': VAE(hf_token=hf_token, device=device, verbose=verbose, max_batch_size=max_batch_size)
+            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
+            'vae': VAE(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size)
         }
 
         self.engine = {}
@@ -212,6 +212,7 @@ class DemoDiffusion:
 
         # Build engines
         for model_name, obj in self.models.items():
+            obj.to(self.device)
             engine = Engine(model_name, engine_dir)
             if force_build or not os.path.exists(engine.engine_path):
                 onnx_path = self.getModelPath(model_name, onnx_dir, opt=False)
@@ -251,6 +252,7 @@ class DemoDiffusion:
                         static_batch=static_batch, static_shape=static_shape), \
                     enable_preview=enable_preview)
             self.engine[model_name] = engine
+            obj.to('cpu')
             del engine
             torch.cuda.empty_cache()
 
