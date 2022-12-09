@@ -249,7 +249,7 @@ class DemoDiffusion:
                     input_profile=obj.get_input_profile(opt_batch_size, opt_image_height, opt_image_width, \
                         static_batch=static_batch, static_shape=static_shape), \
                     enable_preview=enable_preview)
-            self.engine[model_name] = engine
+            self.engine[model_name] = engine.to("cpu")
             del engine
             torch.cuda.empty_cache()
 
@@ -266,8 +266,7 @@ class DemoDiffusion:
         self.scheduler.configure()
 
     def runEngine(self, model_name, feed_dict):
-        engine = self.engine[model_name]
-        return engine.infer(feed_dict, self.stream)
+        return self.engine[model_name].infer(feed_dict, self.stream)
 
     def infer(
         self,
