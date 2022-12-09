@@ -42,9 +42,9 @@ def parseArgs():
     parser.add_argument('--height', type=int, default=512, help="Height of image to generate (must be multiple of 8)")
     parser.add_argument('--width', type=int, default=512, help="Height of image to generate (must be multiple of 8)")
     # parser.add_argument('--num-images', type=int, default=1, help="Number of images to generate per prompt")
-    parser.add_argument('--denoising-steps', type=int, default=50, help="Number of denoising steps")
+    parser.add_argument('--denoising-steps', type=int, default=10, help="Number of denoising steps")
     parser.add_argument('--denoising-prec', type=str, default='fp16', choices=['fp32', 'fp16'], help="Denoiser model precision")
-    parser.add_argument('--scheduler', type=str, default="LMSD", choices=["LMSD", "DPM"], help="Scheduler for diffusion process")
+    parser.add_argument('--scheduler', type=str, default="DPM", choices=["LMSD", "DPM"], help="Scheduler for diffusion process")
 
     # ONNX export
     parser.add_argument('--onnx-opset', type=int, default=16, choices=range(7,18), help="Select ONNX opset version to target for exported models")
@@ -54,7 +54,7 @@ def parseArgs():
     parser.add_argument('--onnx-minimal-optimization', action='store_true', help="Restrict ONNX optimization to const folding and shape inference.")
 
     # TensorRT engine build
-    parser.add_argument('--model-path', default="CompVis/stable-diffusion-v1-4", help="HuggingFace Model path")
+    parser.add_argument('--model-path', default="runwayml/stable-diffusion-v1-5", help="HuggingFace Model path")
     parser.add_argument('--engine-dir', default='engine', help="Output directory for TensorRT engines")
     parser.add_argument('--force-engine-build', action='store_true', help="Force rebuilding the TensorRT engine")
     parser.add_argument('--build-static-batch', action='store_true', help="Build TensorRT engines with fixed batch size.")
@@ -144,9 +144,9 @@ class DemoDiffusion:
 
         self.unet_model_key = 'unet_fp16' if denoising_fp16 else 'unet'
         self.models = {
-            'clip': CLIP(hf_token=hf_token, device=device, verbose=verbose, max_batch_size=max_batch_size),
-            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device=device, verbose=verbose, max_batch_size=max_batch_size),
-            'vae': VAE(hf_token=hf_token, device=device, verbose=verbose, max_batch_size=max_batch_size)
+            'clip': CLIP(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
+            self.unet_model_key: UNet(model_path=model_path, hf_token=hf_token, fp16=denoising_fp16, device='cpu', verbose=verbose, max_batch_size=max_batch_size),
+            'vae': VAE(hf_token=hf_token, device='cpu', verbose=verbose, max_batch_size=max_batch_size)
         }
 
         self.engine = {}
@@ -258,7 +258,7 @@ class DemoDiffusion:
     def loadModules(
         self,
     ):
-        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14").to('cpu')
         self.scheduler.set_timesteps(self.denoising_steps)
         # Pre-compute latent input scales and linear multistep coefficients
         self.scheduler.configure()
@@ -334,6 +334,7 @@ class DemoDiffusion:
                 nvtx_clip = nvtx.start_range(message='clip', color='green')
             cudart.cudaEventRecord(events['clip-start'], 0)
             # Tokenize input
+            self.tokenizer.to('cuda')
             text_input_ids = self.tokenizer(
                 prompt,
                 padding="max_length",
@@ -358,6 +359,7 @@ class DemoDiffusion:
                 truncation=True,
                 return_tensors="pt",
             ).input_ids.type(torch.int32).to(self.device)
+            self.tokenizer.to('cpu')
             uncond_input_ids_inp = cuda.DeviceView(ptr=uncond_input_ids.data_ptr(), shape=uncond_input_ids.shape, dtype=np.int32)
             uncond_embeddings = self.runEngine('clip', {"input_ids": uncond_input_ids_inp})['text_embeddings']
 
