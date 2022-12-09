@@ -251,7 +251,6 @@ class DemoDiffusion:
                     enable_preview=enable_preview)
             self.engine[model_name] = engine
             del engine
-            torch.gc()
             torch.cuda.empty_cache()
 
         # Separate iteration to activate engines
