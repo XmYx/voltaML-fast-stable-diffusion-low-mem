@@ -22,6 +22,7 @@ import os
 
 import numpy as np
 from cuda import cudart
+from diffusers import DEISMultistepScheduler
 from polygraphy import cuda
 
 
@@ -150,9 +151,10 @@ class DemoDiffusion:
         self,
     ):
         self.tokenizer = CLIPTokenizer.from_pretrained("timbrooks/instruct-pix2pix", subfolder="tokenizer")
-        self.scheduler = EulerAncestralDiscreteScheduler.from_config(
+        self.scheduler = DEISMultistepScheduler.from_config(
                 self.scheduler_config_path
             )
+        self.scheduler.config.algorithm_type = "deis"
 
     def runEngine(self, model_name, feed_dict):
         engine = self.engine[model_name]
@@ -410,7 +412,7 @@ class DemoDiffusion:
             latents = self.scheduler.step(
                 noise_pred, timesteps[0], latents, **extra_step_kwargs
             ).prev_sample
-            latent_chunks = latents.chunk(4)
+            latent_chunks = latents.chunk(16)
             result_chunks = []
 
 

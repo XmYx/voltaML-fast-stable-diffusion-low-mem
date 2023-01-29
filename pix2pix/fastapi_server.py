@@ -4,6 +4,8 @@ import io
 import subprocess
 
 import PIL
+import msgpack
+
 try:
     import fastapi
 except:
@@ -14,14 +16,14 @@ except:
 from typing import List, Optional, Union
 from PIL import Image
 from diffusers import EulerAncestralDiscreteScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 import torch
 
 #from schedulers import change_scheduler
 #from trt_cleanup import load_trt_model
 from infer import DemoDiffusion
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from msgpack import packb
 
 
@@ -35,15 +37,15 @@ class TRTWorker:
     def generate(self, body, init_image):
 
         dur, result = self.trt.infer(
-            prompt=body.prompt,
-            negative_prompt=body.negative_prompt,
-            height=body.height,
-            width=body.width,
-            guidance_scale=body.guidance_scale,
-            seed=body.seed,
-            num_inference_steps=body.num_inference_steps,
+            prompt=body["prompt"],
+            negative_prompt=body["negative_prompt"],
+            height=body["height"],
+            width=body["width"],
+            guidance_scale=body["guidance_scale"],
+            seed=body["seed"],
+            num_inference_steps=body["num_inference_steps"],
             image=init_image,
-            image_guidance_scale=body.strength,
+            image_guidance_scale=body["strength"],
             eta=0.0,
         )
         return result
@@ -83,50 +85,24 @@ class InferenceArgs(BaseModel):
     webcam_image: Optional[str] = ""
     strength: Optional[float] = 0.8
 
+class InferenceArgs2(BaseModel):
+    prompt: str
+    webcam_image: bytes
+
 app = FastAPI(on_startup=[on_startup])
 @app.post('/api/infer')
-def infer(body: InferenceArgs):
-    #print(body)
-    #global trt
-    #trt.denoising_steps = body.num_inference_steps
-
-    sched_opts = {
-        "beta_end": 0.012,
-        "beta_schedule": "scaled_linear",
-        "beta_start": 0.00085,
-        "num_train_timesteps": 1000,
-        "set_alpha_to_one": False,
-        "skip_prk_steps": True,
-        "steps_offset": 1,
-        "trained_betas": None,
-        "clip_sample": False,
-    }
-
-    #change_scheduler(trt, "Scheduler.euler_a", sched_opts)
-    image_bytes = base64.b64decode(body.webcam_image)
-    buf = io.BytesIO(image_bytes)
-
-    # print(type(image_bytes))
+async def infer(req: Request):
+    data = await req.body()
+    data = msgpack.unpackb(data, raw=False)
+    # Decode msgpack data
+    # Create file-like object from image bytes
+    buf = io.BytesIO(data["webcam_image"])
+    # Open image using PIL
     init_image = PIL.Image.open(buf)
+    # Perform other operations on the image as needed
     init_image = PIL.ImageOps.exif_transpose(init_image)
-
     init_image = init_image.convert('RGB').resize((512, 512), resample=PIL.Image.LANCZOS)
-
-    response = worker.generate(body, init_image)
-
-    """dur, response = trt.infer(
-        prompt=body.prompt,
-        negative_prompt=body.negative_prompt,
-        height=body.height,
-        width=body.width,
-        guidance_scale=body.guidance_scale,
-        seed=body.seed,
-        num_inference_steps=body.num_inference_steps,
-        image=init_image,
-        image_guidance_scale=body.strength,
-        eta=0.0,
-    )"""
-
+    response = worker.generate(data, init_image)
 
 
     print(type(response))
